@@ -13,6 +13,7 @@ def receive(sock):
     while True:
         recvData = sock.recv(1024)
         print('상대방 :', recvData.decode('utf-8'))
+        print('>>>', end='')
 
 
 port = 8081

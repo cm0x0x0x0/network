@@ -13,13 +13,14 @@ def receive(sock):
     while True:
         recvData = sock.recv(1024)
         print('상대방 :', recvData.decode('utf-8'))
+        print('>>>', end = '')
 
 
 port = 8081
 
 serverSock = socket(AF_INET, SOCK_STREAM)
 serverSock.bind(('', port))
-serverSock.listen(1)
+serverSock.listen(10)
 
 print('%d번 포트로 접속 대기중...'%port)
 
