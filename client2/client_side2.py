@@ -8,46 +8,17 @@ PORT = 9009
 
 
 def rcvMsg(sock):
-    File_ON = False
-    File_Name_ON = False
-    data_transferred = 0
-    filedata_str = ''
     while True:
         try:
             data = sock.recv(1024)
             print(data.decode())
             if not data:
                 break
-
-            elif data.decode() == '/fileend':
-                print('############ /fileend ##############')
-                File_ON = False
-                File_Name_ON = False
-                print("파일[%s] 수신완료. 수신량 [%d]" % (filename, data_transferred))
-                data_transferred = 0
-                filedata_str = ''
             elif '/file_' in data.decode():
                 print('############ /file ##############')
-                File_ON = True
                 temp_str = data.decode()
                 filename = temp_str.split('_')[1]
-                File_Name_ON = True
-                print('%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%')
-                print(filename)
-                print('%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%')
-
-            elif File_ON == True and File_Name_ON == True:  # filename받고 filedata만 받을 때,
-                print('############ File_ON == True and File_Name_ON == True ##############')
-                with open('download/' + filename, 'ab') as f:
-                    try:
-                        print("########### try ############")
-                        filedata = data
-                        f.write(filedata)
-                        data_transferred += len(filedata)
-                        print(data_transferred)
-                        continue
-                    except Exception as e:
-                        print(e)
+                getFileFromServer(sock, filename)
             else:
                 print('############ else ##############')
                 print(data.decode())
@@ -56,17 +27,23 @@ def rcvMsg(sock):
             pass
 def getFileFromServer(sock, filename):
     data_transferred = 0
-    data = sock.recv(1024)
-    if not data:
+    filedata = sock.recv(1024)
+    if not filedata:
         print('if not data!!!')
         return
 
     with open('download/' + filename, 'ab') as f:
         try:
-            while data:
-                f.write(data)
-                data_transferred += len(data)
-                data = sock.recv(1024)
+            while True:
+                f.write(filedata)
+                data_transferred += len(filedata)
+                filedata = sock.recv(1024)
+                if '/fileend'.encode() in filedata:
+                    #filedata = str(filedata).split('/fileend')[0][2:].encode()
+                    filedata = filedata.split()[0]
+                    f.write(filedata)
+                    data_transferred += len(filedata)
+                    break
         except Exception as e:
             print(e)
 
