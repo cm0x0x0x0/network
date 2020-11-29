@@ -40,7 +40,8 @@ def getFileFromServer(sock, filename):
                 filedata = sock.recv(1024)
                 if '/fileend'.encode() in filedata:
                     #filedata = str(filedata).split('/fileend')[0][2:].encode()
-                    filedata = filedata.split()[0]
+                    #filedata = filedata.split()[0]
+                    filedata = filedata.split(b'/fileend')[0]
                     f.write(filedata)
                     data_transferred += len(filedata)
                     break
