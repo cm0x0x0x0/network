@@ -1,6 +1,7 @@
 import socketserver
 import threading
 
+
 HOST = ''
 PORT = 9009
 lock = threading.Lock() # syncronized 동기화 진행하는 스레드 생성
@@ -59,15 +60,33 @@ class MyTcpHandler(socketserver.BaseRequestHandler):
     
    def handle(self): # 클라이언트가 접속시 클라이언트 주소 출력
       print('[%s] 연결됨' %self.client_address[0])
-
+      data_transferred = 0
       try:
          username = self.registerUsername()
          msg = self.request.recv(1024)
          while msg:
-            print(msg.decode())
-            if self.userman.messageHandler(username, msg.decode()) == -1:
-               self.request.close()
-               break
+            filemsg = msg.decode()
+            if filemsg == '/file':
+               filename = self.request.recv(1024)
+               filename = filename.decode()
+               filedata = self.request.recv(1024)
+               if not filedata:
+                  print("파일[%s]: 전송 중 오류발생" %filename)
+               with open('download/'+filename, 'wb') as f:
+                  try:
+                     while filedata != '/fileend'.encode():
+                        f.write(filedata)
+                        data_transferred += len(filedata)
+                        filedata = self.request.recv(1024)
+                  except Exception as e:
+                     print(e)
+               print("파일[%s] 수신완료. 수신량 [%d]" %(filename, data_transferred))
+            else:
+               print(msg.decode())
+               if self.userman.messageHandler(username, msg.decode()) == -1:
+                  self.request.close()
+                  break
+            data_transferred = 0
             msg = self.request.recv(1024)
                 
       except Exception as e:
