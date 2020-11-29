@@ -53,6 +53,34 @@ class UserManager: # 사용자관리 및 채팅 메세지 전송을 담당하는
    def sendMessageToAll(self, msg):
       for conn, addr in self.users.values():
          conn.send(msg.encode())
+
+   def sendFileToAllStartExceptSender(self, sender_user, filename):
+      for conn, addr in self.users.values():
+         if ((conn, addr) == self.users[sender_user]):
+            continue
+         else:
+            conn.send(('/file'+'_'+filename).encode())
+
+   def sendFileToAllEndExceptSender(self, sender_user):
+      for conn, addr in self.users.values():
+         if ((conn, addr) == self.users[sender_user]):
+            continue
+         else:
+            conn.send('/fileend'.encode())
+
+
+   def sendFileToAllExceptSender(self, sender_user, filedata):
+      for conn, addr in self.users.values():
+         if((conn, addr) == self.users[sender_user]):
+            continue
+         else:
+            size = conn.send(filedata)
+      return size
+
+
+
+
+
           
 
 class MyTcpHandler(socketserver.BaseRequestHandler):
@@ -81,6 +109,19 @@ class MyTcpHandler(socketserver.BaseRequestHandler):
                   except Exception as e:
                      print(e)
                print("파일[%s] 수신완료. 수신량 [%d]" %(filename, data_transferred))
+               data_transferred = 0
+               self.userman.sendFileToAllStartExceptSender(username, filename)
+               with open('download/'+filename, 'rb') as f:
+                  try:
+                     filedata = f.read(1024)
+                     while filedata:  # data가 없을 때 까지
+                        data_transferred += self.userman.sendFileToAllExceptSender(username, filedata)
+                        filedata = f.read(1024)
+                     print("파일[%s] broadcasting 완료. 전송량 [%d]" %(filename, data_transferred))
+                  except Exception as e:
+                     print(e)
+               self.userman.sendFileToAllEndExceptSender(username)
+
             else:
                print(msg.decode())
                if self.userman.messageHandler(username, msg.decode()) == -1:
