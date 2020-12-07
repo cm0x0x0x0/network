@@ -15,7 +15,7 @@ def rcvMsg(sock):
             if not data:
                 break
             elif '/file_' in data.decode():
-                #print('############ /file ##############')
+                print('############ /file ##############')
                 temp_str = data.decode()
                 filename = temp_str.split('_')[1]
                 getFileFromServer(sock, filename)
