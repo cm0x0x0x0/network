@@ -19,9 +19,9 @@ def rcvMsg(sock):
                 temp_str = data.decode()
                 filename = temp_str.split('_')[1]
                 getFileFromServer(sock, filename)
-            else:
-                print('############ else ##############')
-                print(data.decode())
+            # else:
+            #     print('############ else ##############')
+            #     print(data.decode())
 
         except:
             pass

@@ -13,24 +13,28 @@ class UserManager: # 사용자관리 및 채팅 메세지 전송을 담당하는
 				   # ④ 사용자가 입력한 메세지를 채팅 서버에 접속한 모두에게 전송
 
    def __init__(self):
-      self.users = {} # 사용자의 등록 정보를 담을 사전 {사용자 이름:(소켓,주소),...}
+      self.users = {} # 사용자의 등록 정보를 담을 사전 {사용자 이름:(소켓,주소,패스워드),...}
 
-   def addUser(self, username, conn, addr): # 사용자 ID를 self.users에 추가하는 함수
+   def addUser(self, username, conn, addr, password): # 사용자 ID를 self.users에 추가하는 함수
       if username in self.users: # 이미 등록된 사용자라면
-         conn.send('이미 등록된 사용자입니다.\n'.encode())
-         return None
+         if (conn,addr,password) != self.users[username] :
+            conn.send('이미 등록된 사용자입니다.\n'.encode())
+            return None
 
       # 새로운 사용자를 등록함
       lock.acquire() # 스레드 동기화를 막기위한 락
-      self.users[username] = (conn, addr)
+      self.users[username] = (conn, addr, password)
       lock.release() # 업데이트 후 락 해제
 
       self.sendMessageToAll('[%s]님이 입장했습니다.' %username)
       print('+++ 대화 참여자 수 [%d]' %len(self.users))
+      print('+++ 대화 참여자 명단')
+      for username in self.users:
+         print(username)
         
       return username
 
-   def removeUser(self, username): #사용자를 제거하는 함수
+   def removeUser(self, username, hostQuitBySystem): #사용자를 제거하는 함수
       if username not in self.users:
          return
 
@@ -38,20 +42,31 @@ class UserManager: # 사용자관리 및 채팅 메세지 전송을 담당하는
       del self.users[username]
       lock.release()
 
-      self.sendMessageToAll('[%s]님이 퇴장했습니다.' %username)
+      if (hostQuitBySystem == False):
+         self.sendMessageToAll('[%s]님이 퇴장했습니다.' %username)
+      else:
+         self.sendMessageToAll('[%s]님이 예기치 않은 상황으로 인해 퇴장했습니다.' % username)
       print('--- 대화 참여자 수 [%d]' %len(self.users))
 
-   def messageHandler(self, username, msg): # 전송한 msg를 처리하는 부분
-      if msg[0] != '/': # 보낸 메세지의 첫문자가 '/'가 아니면
-         self.sendMessageToAll('[%s] %s' %(username, msg))
-         return
 
-      if msg.strip() == '/quit': # 보낸 메세지가 'quit'이면
-         self.removeUser(username)
-         return -1
+
+
+
+   def messageHandler(self, username, msg): # 전송한 msg를 처리하는 부분
+
+         if msg[0] != '/': # 보낸 메세지의 첫문자가 '/'가 아니면
+            self.sendMessageToAll('[%s] %s' %(username, msg))
+            return
+
+         if msg.strip() == '/quit': # 보낸 메세지가 'quit'이면
+            self.removeUser(username)
+            return -1
+
+
+
 
    def sendMessageToAll(self, msg):
-      for conn, addr in self.users.values():
+      for conn, addr, password in self.users.values():
          conn.send(msg.encode())
 
    def sendFileToAllStartExceptSender(self, sender_user, filename):
@@ -89,6 +104,9 @@ class MyTcpHandler(socketserver.BaseRequestHandler):
    def handle(self): # 클라이언트가 접속시 클라이언트 주소 출력
       print('[%s] 연결됨' %self.client_address[0])
       data_transferred = 0
+      hostQuitBySystem = False
+
+
       try:
          username = self.registerUsername()
          msg = self.request.recv(1024)
@@ -129,19 +147,33 @@ class MyTcpHandler(socketserver.BaseRequestHandler):
                   break
             data_transferred = 0
             msg = self.request.recv(1024)
-                
+
+
+
+
       except Exception as e:
-         print(e)
+         # print(e)
+         hostQuitBySystem = True
+         print('[%s]님이 예기치 않은 상황으로 연결 두절되었습니다.' % (username))
 
       print('[%s] 접속종료' %self.client_address[0])
-      self.userman.removeUser(username)
+      self.userman.removeUser(username, hostQuitBySystem)
+
+
+
+
 
    def registerUsername(self):
       while True:
          self.request.send('로그인ID:'.encode())
          username = self.request.recv(1024)
          username = username.decode().strip()
-         if self.userman.addUser(username, self.request, self.client_address):
+
+         self.request.send('password:'.encode())
+         password = self.request.recv(1024)
+         password = password.decode().strip()
+
+         if self.userman.addUser(username, self.request, self.client_address, password):
             return username
 
 class ChatingServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
@@ -156,6 +188,7 @@ def runServer():
       server.serve_forever()
    except KeyboardInterrupt:
       print('--- 채팅 서버를 종료합니다.')
+      # self.user.removeUser()
       server.shutdown()
       server.server_close()
 
