@@ -84,6 +84,7 @@ class UserManager:  # 사용자관리 및 채팅 메세지 전송을 담당하�
             self.sendMessageToAllExceptSender(username,'[%s]님이 예기치 않은 상황으로 인해 연결이 끊어졌습니다. ' % username)
             print('--- 대화 참여자 수 [%d]' % len(self.users))
 
+    """
     def messageHandler(self, username, msg, hostQuitBySystem):  # 전송한 msg를 처리하는 부분
 
         if msg[0] != '/':  # 보낸 메세지의 첫문자가 '/'가 아니면
@@ -93,6 +94,7 @@ class UserManager:  # 사용자관리 및 채팅 메세지 전송을 담당하�
         if msg.strip() == '/quit':  # 보낸 메세지가 'quit'이면
             self.removeUser(username, hostQuitBySystem)
             return -1
+    """
 
     def sendMessageToAll(self, msg):
         for conn, addr, password in self.users.values():
@@ -173,16 +175,17 @@ class MyTcpHandler(socketserver.BaseRequestHandler):
                            self.userman.sendFileToAllEndExceptSender(username)
                    else:
                        print(msg.decode())
-                       if self.userman.messageHandler(username, msg.decode(), hostQuitBySystem) == -1:
-                           self.request.close()
-                           break
+                       if (msg.decode()).strip() == '/quit':  # 보낸 메세지가 'quit'이면
+                           self.userman.removeUser(username, hostQuitBySystem)
+                       else:
+                           self.userman.sendMessageToAll('[%s] %s' % (username, msg.decode()))
                    data_transferred = 0
                    msg = self.request.recv(1024)
 
            except:
               # print("KeyboardInterrupt")
               hostQuitBySystem = True
-              print('[%s]님이 예기치 않은 상황으로 연결 두절되었습니다.' % (username))
+              self.userman.removeUser(username, hostQuitBySystem)
 
 
         except:
