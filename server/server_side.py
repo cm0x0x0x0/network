@@ -14,7 +14,7 @@ class UserManager:  # 사용자관리 및 채팅 메세지 전송을 담당하�
 
     def __init__(self):
         self.users = {}  # 사용자의 등록 정보를 담을 사전 {사용자 이름:(소켓,주소,패스워드),...}
-        self.unconnectedUsers = {}
+        self.unconnectedUsers = [] # 연결 끊어진 사용자 정보를 담을 리스트 [사용자 이름1, ...]
 
     def addUser(self, username, conn, addr, password):  # 사용자 ID를 self.users에 추가하는 함수
         if username in self.users:  # 이미 등록된 사용자라면
@@ -33,6 +33,7 @@ class UserManager:  # 사용자관리 및 채팅 메세지 전송을 담당하�
                 # 새로운 사용자를 등록함
                 lock.acquire()  # 스레드 동기화를 막기위한 락
                 self.users[username] = (conn, addr, password)
+                self.unconnectedUsers.remove(username)
                 lock.release()  # 업데이트 후 락 해제
 
                 self.sendMessageToAll('[%s]님이 다시 연결하였습니다.' % username)
@@ -73,6 +74,7 @@ class UserManager:  # 사용자관리 및 채팅 메세지 전송을 담당하�
            # print('hi')
            lock.acquire()
            del self.users[username]
+           self.unconnectedUsers.remove(username)
            lock.release()
            self.sendMessageToAll('[%s]님이 퇴장했습니다.' % username)
            print('--- 대화 참여자 수 [%d]' % len(self.users))
@@ -80,7 +82,9 @@ class UserManager:  # 사용자관리 및 채팅 메세지 전송을 담당하�
             # lock.acquire()
             # self.unconnectedUsers[username] = (self.users[0], self.users[1], self.users[2])
             # lock.release()
-
+            lock.acquire()
+            self.unconnectedUsers.append(username)
+            lock.release()
             self.sendMessageToAllExceptSender(username,'[%s]님이 예기치 않은 상황으로 인해 연결이 끊어졌습니다. ' % username)
             print('--- 대화 참여자 수 [%d]' % len(self.users))
 
@@ -97,35 +101,75 @@ class UserManager:  # 사용자관리 및 채팅 메세지 전송을 담당하�
     """
 
     def sendMessageToAll(self, msg):
+        chk = False
         for conn, addr, password in self.users.values():
+            chk = False
+            for username in self.unconnectedUsers:
+                if(self.users[username] == (conn, addr, password)):
+                    chk = True
+                    break
+            if(chk):
+                continue
             conn.send(msg.encode())
 
     def sendMessageToAllExceptSender(self, sender_user, msg):
+        chk = False
         for conn, addr, password in self.users.values():
+            chk = False
             if((conn, addr, password) == self.users[sender_user]):
                 continue
             else:
+                for username in self.unconnectedUsers:
+                    if (self.users[username] == (conn, addr, password)):
+                        chk = True
+                        break
+                if (chk):
+                    continue
                 conn.send(msg.encode())
 
     def sendFileToAllStartExceptSender(self, sender_user, filename):
+        chk = False
         for conn, addr, password in self.users.values():
+            chk = False
             if ((conn, addr, password) == self.users[sender_user]):
                 continue
             else:
+                for username in self.unconnectedUsers:
+                    if (self.users[username] == (conn, addr, password)):
+                        chk = True
+                        break
+                if (chk):
+                    continue
                 conn.send(('/file' + '_' + filename).encode())
 
     def sendFileToAllEndExceptSender(self, sender_user):
+        chk = False
         for conn, addr, password in self.users.values():
+            chk = False
             if ((conn, addr, password) == self.users[sender_user]):
                 continue
             else:
+                for username in self.unconnectedUsers:
+                    if (self.users[username] == (conn, addr, password)):
+                        chk = True
+                        break
+                if (chk):
+                    continue
                 conn.send('/fileend'.encode())
 
     def sendFileToAllExceptSender(self, sender_user, filedata):
+        chk = False
         for conn, addr, password in self.users.values():
+            chk = False
             if ((conn, addr, password) == self.users[sender_user]):
                 continue
             else:
+                for username in self.unconnectedUsers:
+                    if (self.users[username] == (conn, addr, password)):
+                        chk = True
+                        break
+                if (chk):
+                    continue
                 size = conn.send(filedata)
         return size
 
