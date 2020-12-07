@@ -147,30 +147,30 @@ class MyTcpHandler(socketserver.BaseRequestHandler):
                        filename = self.request.recv(1024)
                        filename = filename.decode()
                        filedata = self.request.recv(1024)
-                       if not filedata:
+                       if filedata == '/fileend'.encode():
                            print("파일[%s]: 전송 중 오류발생" % filename)
-                       with open('download/' + filename, 'wb') as f:
-                           try:
-                               while filedata != '/fileend'.encode():
-                                   f.write(filedata)
-                                   data_transferred += len(filedata)
-                                   filedata = self.request.recv(1024)
-                           except Exception as e:
-                               print(e)
-                       print("파일[%s] 수신완료. 수신량 [%d]" % (filename, data_transferred))
-                       data_transferred = 0
-                       self.userman.sendFileToAllStartExceptSender(username, filename)
-                       with open('download/' + filename, 'rb') as f:
-                           try:
-                               filedata = f.read(1024)
-                               while filedata:  # data가 없을 때 까지
-                                   data_transferred += self.userman.sendFileToAllExceptSender(username, filedata)
+                       else:
+                           with open('download/' + filename, 'wb') as f:
+                               try:
+                                   while filedata != '/fileend'.encode():
+                                       f.write(filedata)
+                                       data_transferred += len(filedata)
+                                       filedata = self.request.recv(1024)
+                               except Exception as e:
+                                   print(e)
+                           print("파일[%s] 수신완료. 수신량 [%d]" % (filename, data_transferred))
+                           data_transferred = 0
+                           self.userman.sendFileToAllStartExceptSender(username, filename)
+                           with open('download/' + filename, 'rb') as f:
+                               try:
                                    filedata = f.read(1024)
-                               print("파일[%s] broadcasting 완료. 전송량 [%d]" % (filename, data_transferred))
-                           except Exception as e:
-                               print(e)
-                       self.userman.sendFileToAllEndExceptSender(username)
-
+                                   while filedata:  # data가 없을 때 까지
+                                       data_transferred += self.userman.sendFileToAllExceptSender(username, filedata)
+                                       filedata = f.read(1024)
+                                   print("파일[%s] broadcasting 완료. 전송량 [%d]" % (filename, data_transferred))
+                               except Exception as e:
+                                   print(e)
+                           self.userman.sendFileToAllEndExceptSender(username)
                    else:
                        print(msg.decode())
                        if self.userman.messageHandler(username, msg.decode(), hostQuitBySystem) == -1:
@@ -190,7 +190,7 @@ class MyTcpHandler(socketserver.BaseRequestHandler):
            print(hostQuitBySystem)
 
         print('[%s] 접속종료' % self.client_address[0])
-        self.userman.removeUser(username, hostQuitBySystem)
+        #self.userman.removeUser(username, hostQuitBySystem)
 
     def registerUsername(self):
         while True:

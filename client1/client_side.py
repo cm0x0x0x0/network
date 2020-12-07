@@ -67,8 +67,9 @@ def runChat():
                 filename = input('전송할 파일 이름을 입력하세요: ')
                 sock.send(filename.encode())
                 if not exists(filename):
-                    print("There is no such file");
-                    sys.exit();
+                    print("There is no such file")
+                    sock.send("/fileend".encode())
+                    sys.exit()
                 print("파일 %s 전송 시작" % filename)
                 data_transferred = 0
                 with open(filename, 'rb') as f:
